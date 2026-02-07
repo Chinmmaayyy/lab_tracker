@@ -1,91 +1,59 @@
 import time
 import uuid
-import socket
 from datetime import datetime
+import socket
 import ctypes
 from ctypes import wintypes
-import psutil
 
+import psutil
 import firebase_admin
 from firebase_admin import credentials, db
 
-# ---------------- FIREBASE SETUP ----------------
+# Firebase setup
 cred = credentials.Certificate("firebase/serviceAccountKey.json")
 
-firebase_admin.initialize_app(cred, {
-    "databaseURL": "https://fir-os-dc607-default-rtdb.firebaseio.com"
-})
+if not firebase_admin._apps:
+    firebase_admin.initialize_app(cred, {
+        'databaseURL': 'https://fir-os-dc607-default-rtdb.firebaseio.com/'
+    })
 
-# ---------------- DEVICE ID ----------------
-def get_device_id():
-    return f"{socket.gethostname()}-{uuid.getnode()}"
-
-# ---------------- ACTIVE WINDOW ----------------
-def get_active_window():
+def get_active_app_name():
     user32 = ctypes.windll.user32
-    hwnd = user32.GetForegroundWindow()
-
-    length = user32.GetWindowTextLengthW(hwnd)
-    buf = ctypes.create_unicode_buffer(length + 1)
-    user32.GetWindowTextW(hwnd, buf, length + 1)
-    title = buf.value
+    h_wnd = user32.GetForegroundWindow()
 
     pid = wintypes.DWORD()
-    user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+    user32.GetWindowThreadProcessId(h_wnd, ctypes.byref(pid))
 
     try:
         process = psutil.Process(pid.value)
-        app = process.name().replace(".exe", "")
-    except:
-        app = "Unknown"
+        return process.name().replace('.exe', '')
+    except Exception as e:
+        print("Process error:", e)
+        return "Unknown"
 
-    website = None
-    if app.lower() in ["msedge", "chrome"]:
-        website = title.split(" - ")[0]
+def get_device_id():
+    hostname = socket.gethostname()
+    return f"{hostname}-{uuid.getnode()}"[:20]
 
-    return app, website
-
-# ---------------- MAIN TRACKER ----------------
-def start_tracker():
+def send_usage_data():
     device_id = get_device_id()
-    base_ref = db.reference(f"devices/{device_id}")
-
-    last_app = None
-    last_time = time.time()
+    ref = db.reference(f"devices/{device_id}/usage_logs")
 
     while True:
-        current_app, website = get_active_window()
-        now = time.time()
-        elapsed = int(now - last_time)
+        app_name = get_active_app_name()
+        timestamp = datetime.utcnow().isoformat() + "Z"
 
-        # Update totals
-        if last_app:
-            base_ref.child(f"app_usage/{last_app}").transaction(
-                lambda x: (x or 0) + elapsed
-            )
+        data = {
+            "device_id": device_id,
+            "app_name": app_name,
+            "timestamp": timestamp
+        }
 
-            base_ref.child("device_stats/total_screen_time").transaction(
-                lambda x: (x or 0) + elapsed
-            )
+        ref.push(data)
+        print(f"Sent: {app_name} at {timestamp}")
 
-        if website:
-            base_ref.child(f"web_usage/{website}").transaction(
-                lambda x: (x or 0) + elapsed
-            )
-
-        # Update current status
-        base_ref.child("current").set({
-            "app": current_app,
-            "website": website,
-            "last_updated": datetime.utcnow().isoformat()
-        })
-
-        last_app = current_app
-        last_time = now
         time.sleep(5)
 
-# ---------------- RUN ----------------
 if __name__ == "__main__":
-    print("Device Usage Tracker running...")
-    start_tracker()
-    
+    print("Starting Device Usage Tracker...")
+    send_usage_data()
