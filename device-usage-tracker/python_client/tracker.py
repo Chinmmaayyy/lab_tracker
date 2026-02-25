@@ -1,59 +1,120 @@
 import time
 import uuid
-from datetime import datetime
 import socket
+from datetime import datetime
 import ctypes
 from ctypes import wintypes
-
 import psutil
 import firebase_admin
 from firebase_admin import credentials, db
 
-# Firebase setup
+# ---------------- FIREBASE SETUP ----------------
+# Ensure your serviceAccountKey.json is in the correct directory
 cred = credentials.Certificate("firebase/serviceAccountKey.json")
 
-if not firebase_admin._apps:
-    firebase_admin.initialize_app(cred, {
-        'databaseURL': 'https://fir-os-dc607-default-rtdb.firebaseio.com/'
-    })
+firebase_admin.initialize_app(cred, {
+    "databaseURL": "https://fir-os-dc607-default-rtdb.firebaseio.com"
+})
 
-def get_active_app_name():
+# ---------------- UTILS & SANITIZATION ----------------
+def get_device_id():
+    return f"{socket.gethostname()}-{uuid.getnode()}"
+
+def sanitize_key(key: str) -> str:
+    """
+    Firebase keys cannot contain: . # $ [ ] /
+    This prevents the ValueError: Path contains illegal characters.
+    """
+    if not key:
+        return "Unknown"
+    
+    return (
+        key.replace(".", "_")
+           .replace("#", "_")
+           .replace("$", "_")
+           .replace("[", "_")
+           .replace("]", "_")
+           .replace("/", "_")
+    )
+
+# ---------------- ACTIVE WINDOW TRACKING ----------------
+def get_active_window():
     user32 = ctypes.windll.user32
-    h_wnd = user32.GetForegroundWindow()
+    hwnd = user32.GetForegroundWindow()
+
+    length = user32.GetWindowTextLengthW(hwnd)
+    buf = ctypes.create_unicode_buffer(length + 1)
+    user32.GetWindowTextW(hwnd, buf, length + 1)
+    title = buf.value
 
     pid = wintypes.DWORD()
-    user32.GetWindowThreadProcessId(h_wnd, ctypes.byref(pid))
+    user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
 
     try:
         process = psutil.Process(pid.value)
-        return process.name().replace('.exe', '')
-    except Exception as e:
-        print("Process error:", e)
-        return "Unknown"
+        # Remove .exe for cleaner database keys
+        app = process.name().replace(".exe", "")
+    except Exception:
+        app = "Unknown"
 
-def get_device_id():
-    hostname = socket.gethostname()
-    return f"{hostname}-{uuid.getnode()}"[:20]
+    website = None
+    if app.lower() in ["msedge", "chrome", "brave"]:
+        # Simple parsing for browser titles
+        if " - " in title:
+            website = title.split(" - ")[0]
 
-def send_usage_data():
+    return app, website
+
+# ---------------- MAIN TRACKER LOOP ----------------
+def start_tracker():
     device_id = get_device_id()
-    ref = db.reference(f"devices/{device_id}/usage_logs")
+    base_ref = db.reference(f"devices/{device_id}")
+
+    last_app = None
+    last_website = None
+    last_time = time.time()
+
+    print(f"Tracking started for device: {device_id}")
 
     while True:
-        app_name = get_active_app_name()
-        timestamp = datetime.utcnow().isoformat() + "Z"
+        current_app, current_website = get_active_window()
+        now = time.time()
+        elapsed = int(now - last_time)
 
-        data = {
-            "device_id": device_id,
-            "app_name": app_name,
-            "timestamp": timestamp
-        }
+        # 1. Update totals for the app that was JUST active
+        if last_app and elapsed > 0:
+            safe_app = sanitize_key(last_app)
+            base_ref.child(f"app_usage/{safe_app}").transaction(
+                lambda x: (x or 0) + elapsed
+            )
 
-        ref.push(data)
-        print(f"Sent: {app_name} at {timestamp}")
+            if last_website:
+                safe_web = sanitize_key(last_website)
+                base_ref.child(f"web_usage/{safe_web}").transaction(
+                    lambda x: (x or 0) + elapsed
+                )
 
+            base_ref.child("device_stats/total_screen_time").transaction(
+                lambda x: (x or 0) + elapsed
+            )
+
+        # 2. Update CURRENT real-time status
+        # Using utcnow with 'Z' ensures the frontend heartbeat (Date.now()) matches perfectly
+        base_ref.child("current").set({
+            "app": current_app,
+            "website": current_website,
+            "last_updated": datetime.utcnow().isoformat() + 'Z'
+        })
+
+        # 3. Rotate variables for next loop
+        last_app = current_app
+        last_website = current_website
+        last_time = now
+        
         time.sleep(5)
 
 if __name__ == "__main__":
-    print("Starting Device Usage Tracker...")
-    send_usage_data()
+    try:
+        start_tracker()
+    except KeyboardInterrupt:
+        print("\nTracker stopped.")
