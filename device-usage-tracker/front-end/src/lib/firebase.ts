@@ -1,77 +1,89 @@
-import { initializeApp } from 'firebase/app';
-import { getDatabase, ref, onValue, DatabaseReference } from 'firebase/database';
+import { initializeApp } from "firebase/app";
+import { getDatabase, ref, onValue } from "firebase/database";
 
-// Firebase configuration - Replace with your own config
+/* =======================
+   FIREBASE CONFIG
+======================= */
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "demo-api-key",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "demo.firebaseapp.com",
-  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL || "https://demo-default-rtdb.firebaseio.com",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "demo-project",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "demo.appspot.com",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "000000000000",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:000000000000:web:000000000000"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY!,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN!,
+  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL!,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID!,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET!,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID!,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID!,
 };
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const database = getDatabase(app);
+export const database = getDatabase(app);
 
-export interface UsageLog {
-  device_id: string;
-  app_name: string;
-  timestamp: string;
-}
-
-export interface DeviceData {
-  device_id: string;
+/* =======================
+   TYPES
+======================= */
+export type DeviceData = {
   latest_app: string;
+  device_id: string;
+  current_app: string;
+  website?: string;
   last_updated: string;
   is_online: boolean;
-}
-
-// Get reference to all devices
-export const getDevicesRef = (): DatabaseReference => {
-  return ref(database, 'devices');
+  total_screen_time: number;
+  app_usage: Record<string, number>;
+  web_usage: Record<string, number>;
 };
 
-// Subscribe to real-time updates for all devices
-export const subscribeToDevices = (callback: (devices: Record<string, DeviceData>) => void) => {
-  const devicesRef = getDevicesRef();
-  
-  return onValue(devicesRef, (snapshot) => {
+type FirebaseDeviceRaw = {
+  current?: {
+    app?: string;
+    website?: string;
+    last_updated?: string;
+  };
+  device_stats?: {
+    total_screen_time?: number;
+  };
+  app_usage?: Record<string, number>;
+  web_usage?: Record<string, number>;
+};
+
+/* =======================
+   REALTIME SUBSCRIPTION
+======================= */
+export const subscribeToDevices = (
+  callback: (devices: Record<string, DeviceData>) => void
+) => {
+  const rootRef = ref(database, "devices");
+
+  return onValue(rootRef, (snapshot) => {
     const data = snapshot.val();
-    if (data) {
-      const devices: Record<string, DeviceData> = {};
-      
-      Object.keys(data).forEach((deviceId) => {
-        const deviceData = data[deviceId];
-        const usageLogs = deviceData.usage_logs;
-        
-        if (usageLogs) {
-          // Get the latest log entry
-          const logKeys = Object.keys(usageLogs);
-          const latestKey = logKeys[logKeys.length - 1];
-          const latestLog = usageLogs[latestKey] as UsageLog;
-          
-          // Check if device is online (updated within last 30 seconds)
-          const lastUpdate = new Date(latestLog.timestamp);
-          const now = new Date();
-          const isOnline = (now.getTime() - lastUpdate.getTime()) < 30000;
-          
-          devices[deviceId] = {
-            device_id: deviceId,
-            latest_app: latestLog.app_name,
-            last_updated: latestLog.timestamp,
-            is_online: isOnline
-          };
-        }
-      });
-      
-      callback(devices);
-    } else {
+
+    if (!data) {
       callback({});
+      return;
     }
+
+    const devices: Record<string, DeviceData> = {};
+
+    Object.entries(data as Record<string, FirebaseDeviceRaw>).forEach(
+      ([deviceId, deviceData]) => {
+        const lastUpdated = deviceData.current?.last_updated;
+
+        // Parse timestamp and determine online status (15s heartbeat)
+        const lastUpdateTime = lastUpdated ? new Date(lastUpdated).getTime() : 0;
+        const isOnline = Date.now() - lastUpdateTime < 15_000;
+
+        devices[deviceId] = {
+          device_id: deviceId,
+          current_app: deviceData.current?.app || "Unknown",
+          website: deviceData.current?.website,
+          last_updated: lastUpdated || new Date().toISOString(),
+          is_online: isOnline,
+          total_screen_time: deviceData.device_stats?.total_screen_time || 0,
+          app_usage: deviceData.app_usage || {},
+          web_usage: deviceData.web_usage || {},
+        };
+      }
+    );
+
+    callback(devices);
   });
 };
-
-export { database };
