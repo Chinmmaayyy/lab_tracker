@@ -48,6 +48,8 @@ export const Dashboard = () => {
 
   const onlineCount = sortedDevices.filter((d) => d.is_online).length;
 
+  /* ... existing imports and state logic ... */
+
   return (
     <div className="min-h-screen bg-[#040708] bg-grid">
       <DashboardHeader
@@ -56,18 +58,18 @@ export const Dashboard = () => {
         isConnected={isConnected}
       />
 
-      {/* CHANGE: max-w-[1600px] ensures the dashboard doesn't get too thin 
-          on wide screens. 
-      */}
       <main className="max-w-[1600px] mx-auto px-6 py-8">
         {sortedDevices.length === 0 ? (
           <EmptyState onShowSetup={() => setShowSetup(true)} />
         ) : (
-          /* CHANGE: Adjusted grid to 'md:grid-cols-2' for side-by-side view.
-             Added 'xl:grid-cols-3' for very large screens.
-             Increased gap to '8' for better breathing room.
+          /* FLEXIBLE GRID: 
+             - grid-cols-1: Single column on mobile.
+             - md:grid-cols-2: Two columns on tablets.
+             - xl:grid-cols-[repeat(auto-fit,minmax(450px,1fr))]: 
+               On large screens, it will automatically fit 2, 3, or 4 
+               devices per row depending on available space.
           */
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 animate-in fade-in duration-700">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-[repeat(auto-fit,minmax(450px,1fr))] gap-8 justify-center animate-in fade-in duration-700">
             {sortedDevices.map((device) => (
               <DeviceCard key={device.device_id} device={device} />
             ))}
