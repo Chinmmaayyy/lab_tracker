@@ -9,7 +9,6 @@ export const DeviceCard = ({ device }: { device: DeviceData }) => {
   const [isExpanded, setIsExpanded] = useState(true);
   const [selectedApp, setSelectedApp] = useState<string | null>(device.current_app || null);
 
-  // Helper to identify if the selected app should show Web History or Pie Chart
   const isBrowser = (app?: string) => {
     const browsers = ['msedge', 'chrome', 'brave', 'firefox'];
     return browsers.includes(app?.toLowerCase() || "");
@@ -62,7 +61,7 @@ export const DeviceCard = ({ device }: { device: DeviceData }) => {
           <div className="border border-[#00e5bf]/20 bg-black/60 p-4 rounded-xl flex items-center gap-5 relative overflow-hidden group">
              <div className="absolute top-0 left-0 w-full h-[1px] bg-[#00e5bf]/10 animate-pulse" />
              <div className="p-3 bg-[#00e5bf]/10 rounded-lg border border-[#00e5bf]/20">
-               <Layout className="h-6 w-6 text-[#00e5bf]" />
+               <include Layout className="h-6 w-6 text-[#00e5bf]" />
              </div>
              <div className="min-w-0 flex-1">
                <p className="text-[9px] text-[#00e5bf] uppercase tracking-[0.3em] mb-1 font-black">Current_Process</p>
@@ -86,8 +85,8 @@ export const DeviceCard = ({ device }: { device: DeviceData }) => {
                 <Cpu size={14} className="text-[#bc00ff]" />
                 <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Process_Stack</span>
               </div>
-              <div className="space-y-1.5">
-                {appEntries.slice(0, 7).map(([name, time], index) => {
+              <div className="space-y-1.5 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                {appEntries.map(([name, time], index) => {
                   const isSelected = selectedApp === name;
                   const itemColor = CYBER_COLORS[index % CYBER_COLORS.length];
 
@@ -105,6 +104,7 @@ export const DeviceCard = ({ device }: { device: DeviceData }) => {
                     >
                       <div className="flex items-center gap-3 truncate pr-2">
                         <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: itemColor }} />
+                        {/* ✅ REMOVED _root/ PREFIX HERE ✅ */}
                         <span className="text-[11px] font-bold truncate lowercase tracking-tight">{name}</span>
                       </div>
                       <span className="text-[10px] font-mono opacity-80">{formatTime(time)}</span>
@@ -127,7 +127,14 @@ export const DeviceCard = ({ device }: { device: DeviceData }) => {
                   <div className="space-y-4">
                     {Object.entries(device.web_usage || {})
                       .sort(([, a], [, b]) => b - a)
-                      .slice(0, 6)
+                      // 🔥 UI FILTER: Only show sites belonging to the selected browser 🔥
+                      .filter(([site]) => {
+                        const s = site.toLowerCase();
+                        if (selectedApp === "msedge") return !s.includes("brave");
+                        if (selectedApp === "brave") return !s.includes("edge") && !s.includes("msedge");
+                        return true;
+                      })
+                      .slice(0, 10)
                       .map(([site, time]) => (
                       <div key={site} className="group relative border-b border-white/5 pb-2">
                         <div className="flex justify-between items-start gap-4 mb-2">
@@ -153,7 +160,7 @@ export const DeviceCard = ({ device }: { device: DeviceData }) => {
                     </span>
                   </div>
                   
-                  {/* DYNAMIC PIE CHART */}
+                  {/* DYNAMIC PIE CHART (Passing selectedApp for pop-out) */}
                   <AppUsagePie 
                     data={device.app_usage} 
                     totalTime={device.total_screen_time} 
