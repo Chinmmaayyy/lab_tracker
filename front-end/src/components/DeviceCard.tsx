@@ -105,7 +105,7 @@ export const DeviceCard = ({ device }: { device: DeviceData }) => {
                     >
                       <div className="flex items-center gap-3 truncate pr-2">
                         <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: itemColor }} />
-                        <span className="text-[11px] font-bold truncate lowercase tracking-tight">_root/{name}</span>
+                        <span className="text-[11px] font-bold truncate lowercase tracking-tight">{name}</span>
                       </div>
                       <span className="text-[10px] font-mono opacity-80">{formatTime(time)}</span>
                     </button>
