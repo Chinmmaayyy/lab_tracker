@@ -38,7 +38,7 @@ export const AppUsagePie = ({
 }) => {
   const chartData = Object.entries(data || {})
     .sort(([, a], [, b]) => b - a)
-    .slice(0, 5)
+    .slice(0, 7)
     .map(([name, value]) => ({ name, value }));
 
   // Find the index of the selected app to trigger the pop-out
