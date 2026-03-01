@@ -12,7 +12,22 @@ export function cn(...inputs: ClassValue[]) {
  * Global Cyber/Hacker Palette
  * These colors sync between the process list and the Pie Chart segments.
  */
-export const CYBER_COLORS = ["#00e5bf", "#3b82f6", "#8b5cf6", "#d946ef", "#f43f5e", "#ffb800"];
+export const CYBER_COLORS =  ["#00e5bf", // cyan
+  "#3b82f6", // blue
+  "#8b5cf6", // violet
+  "#d946ef", // pink
+  "#f43f5e", // red
+  "#22c55e", // green
+  "#eab308", // yellow
+  "#06b6d4", // sky
+  "#ec4899", // rose
+  "#a855f7", // purple
+  "#14b8a6",
+  "#0ea5e9",
+  "#6366f1",
+  "#f97316",
+  "#84cc16",
+    ];
 
 /**
  * Formats seconds into a high-detail duration string
