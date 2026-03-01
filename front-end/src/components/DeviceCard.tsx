@@ -25,7 +25,7 @@ export const DeviceCard = ({ device }: { device: DeviceData }) => {
     device.current_app || null
   );
 
-  /* ✅ FIXED browser detection */
+  /* Browser detection (robust) */
   const isBrowser = (app?: string) => {
     if (!app) return false;
     const name = app.toLowerCase();
@@ -40,6 +40,12 @@ export const DeviceCard = ({ device }: { device: DeviceData }) => {
   const appEntries = Object.entries(device.app_usage || {}).sort(
     ([, a], [, b]) => b - a
   );
+
+  /* ✅ SAFE web data extraction */
+  const webData =
+    selectedApp && device.web_usage?.[selectedApp]
+      ? Object.entries(device.web_usage[selectedApp])
+      : [];
 
   return (
     <Card
@@ -147,7 +153,7 @@ export const DeviceCard = ({ device }: { device: DeviceData }) => {
                           style={{ backgroundColor: color }}
                         />
                         <span
-                          className="text-[11px] font-bold truncate"
+                          className="text-[13px] font-bold truncate"
                           style={{ color: isSelected ? color : "#666" }}
                         >
                           {name.replace(/_/g, " ")}
@@ -164,7 +170,7 @@ export const DeviceCard = ({ device }: { device: DeviceData }) => {
 
             {/* RIGHT PANEL */}
             <div className="p-6 bg-[#00e5bf]/[0.01]">
-              {isBrowser(selectedApp || "") ? (
+              {isBrowser(selectedApp || "") && webData.length > 0 ? (
                 <>
                   <div className="flex items-center gap-2 mb-4">
                     <Globe size={14} className="text-[#00e5bf]" />
@@ -174,9 +180,7 @@ export const DeviceCard = ({ device }: { device: DeviceData }) => {
                   </div>
 
                   <div className="space-y-3">
-                    {Object.entries(
-                      device.web_usage?.[selectedApp || ""] || {}
-                    )
+                    {webData
                       .sort(([, a], [, b]) => b - a)
                       .slice(0, 6)
                       .map(([site, time]) => (
