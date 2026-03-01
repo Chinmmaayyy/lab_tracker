@@ -14,6 +14,33 @@ import { DeviceData } from "@/lib/firebase";
 import { cn, formatTime, CYBER_COLORS, getActiveAppLabel } from "@/lib/utils";
 
 /* ─────────────────────────────────────────────
+   PROCESS NAME ALIASES (EASY TO UNDERSTAND)
+───────────────────────────────────────────── */
+const processAliases: Record<string, string> = {
+  "calc": "Calculator",
+  "msedge": "Microsoft Edge",
+  "brave": "Brave Browser",
+  "explorer": "File Manager",
+  "taskmgr": "Task Manager",
+  "notepad": "Notepad",
+  "snippingtool": "Snipping Tool",
+  "pickerhost": "File Picker (System)",
+  "openwith": "App Selector (System)",
+  "whatsapp_root": "WhatsApp",
+  "code": "VS Code",
+  "powerpnt_exe": "PowerPoint",
+  "shellhost": "Windows Shell",
+  "applicationframehost": "Windows App Frame",
+  "chrome": "Google Chrome",
+  "cmd": "Command Prompt"
+};
+
+const getFriendlyName = (name: string) => {
+  const cleanName = name.replace(".exe", "").toLowerCase();
+  return processAliases[cleanName] || cleanName;
+};
+
+/* ─────────────────────────────────────────────
    CLEAN SITE NAME (UI ONLY – NO DATA LOSS)
 ───────────────────────────────────────────── */
 const cleanSiteName = (site: string) => {
@@ -115,10 +142,10 @@ export const DeviceCard = ({ device }: { device: DeviceData }) => {
               <p className="text-[9px] text-[#00e5bf] uppercase font-black">
                 Current_Process
               </p>
-              <h2 className="text-lg font-black truncate">
-                {getActiveAppLabel(device.is_online, device.current_app)}
+              <h2 className="text-lg font-black truncate leading-none">
+                {getFriendlyName(getActiveAppLabel(device.is_online, device.current_app))}
               </h2>
-              <p className="text-xs text-gray-400 truncate">
+              <p className="text-xs text-gray-400 truncate mt-1">
                 &gt; {device.website || "exec_system_idle"}
               </p>
             </div>
@@ -128,7 +155,7 @@ export const DeviceCard = ({ device }: { device: DeviceData }) => {
         {/* ───────── EXPANDED ANALYTICS ───────── */}
         {isExpanded && (
           <div className="grid grid-cols-1 lg:grid-cols-[250px_1fr]">
-            {/* LEFT: PROCESS STACK - FULL COLOR VERSION */}
+            {/* LEFT: PROCESS STACK - FULL COLOR VERSION WITH ALIASES */}
             <div className="p-5 border-r border-white/5 bg-black/40">
               <div className="flex items-center gap-2 mb-5">
                 <Cpu size={14} className="text-[#bc00ff]" />
@@ -154,8 +181,8 @@ export const DeviceCard = ({ device }: { device: DeviceData }) => {
                       )}
                       style={isSelected ? { backgroundColor: color, boxShadow: `0 0 15px ${color}40` } : {}}
                     >
-                      <span className="text-[11px] font-black truncate lowercase">
-                        {name}
+                      <span className="text-[11px] font-black truncate uppercase">
+                        {getFriendlyName(name)}
                       </span>
                       <span className="text-[10px] font-bold opacity-80 shrink-0">
                         {formatTime(time)}
@@ -174,7 +201,7 @@ export const DeviceCard = ({ device }: { device: DeviceData }) => {
                     <div className="flex items-center gap-2">
                       <Globe size={14} className="text-[#00e5bf]" />
                       <span className="text-[10px] uppercase font-black text-cyan-400">
-                        Network_Traffic_Logs // {selectedApp}
+                        Network_Traffic_Logs // {getFriendlyName(selectedApp || "")}
                       </span>
                     </div>
                     <span className="text-[10px] text-[#00e5bf] font-mono tracking-widest">
