@@ -1,7 +1,23 @@
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Sector } from "recharts";
 import { formatTime } from "@/lib/utils";
 
-export const CHART_COLORS = ["#00e5bf", "#3b82f6", "#8b5cf6", "#d946ef", "#f43f5e"];
+export const CHART_COLORS = [
+  "#00e5bf", // cyan
+  "#3b82f6", // blue
+  "#8b5cf6", // violet
+  "#d946ef", // pink
+  "#f43f5e", // red
+  "#22c55e", // green
+  "#eab308", // yellow
+  "#06b6d4", // sky
+  "#ec4899", // rose
+  "#a855f7", // purple
+  "#14b8a6",
+  "#0ea5e9",
+  "#6366f1",
+  "#f97316",
+  "#84cc16",
+];
 
 // Custom shape to handle the "pop-out" effect
 const renderActiveShape = (props: any) => {
