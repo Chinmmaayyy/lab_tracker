@@ -49,7 +49,7 @@ export const DeviceCard = ({ device }: { device: DeviceData }) => {
           .slice(0, 10)
       : [];
 
-  /* Total web time for selected browser */
+  /* ───────── Total web time for selected browser ───────── */
   const totalWebTime = activeWebEntries.reduce(
     (acc, [, time]) => acc + time,
     0
@@ -167,7 +167,7 @@ export const DeviceCard = ({ device }: { device: DeviceData }) => {
                           {name}
                         </span>
                       </div>
-                      <span className="text-[10px] opacity-70">
+                      <span className="text-[10px] opacity-70 shrink-0">
                         {formatTime(time)}
                       </span>
                     </button>
@@ -180,6 +180,7 @@ export const DeviceCard = ({ device }: { device: DeviceData }) => {
             <div className="p-6 bg-[#00e5bf]/[0.01]">
               {isBrowser(selectedApp) && activeWebEntries.length > 0 ? (
                 <>
+                  {/* HEADER */}
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
                       <Globe size={14} className="text-[#00e5bf]" />
@@ -187,25 +188,26 @@ export const DeviceCard = ({ device }: { device: DeviceData }) => {
                         Network_Traffic_Logs // {selectedApp}
                       </span>
                     </div>
-                    <span className="text-[10px] text-[#00e5bf] font-mono">
-                      TOTAL: {formatTime(totalWebTime)}
+                    <span className="text-[10px] text-[#00e5bf] font-mono tracking-widest">
+                      TOTAL_WEB_TIME: {formatTime(totalWebTime)}
                     </span>
                   </div>
 
+                  {/* WEB LIST */}
                   <div className="space-y-4 max-h-[360px] overflow-y-auto pr-2">
                     {activeWebEntries.map(([site, time]) => (
                       <div
                         key={site}
                         className="border-b border-white/5 pb-2"
                       >
-                        <div className="flex justify-between gap-4">
+                        <div className="flex items-center justify-between gap-4">
                           <span
-                            className="text-xs text-gray-300 truncate max-w-[70%]"
+                            className="text-xs text-gray-300 truncate whitespace-nowrap flex-1"
                             title={site}
                           >
                             {cleanSiteName(site)}
                           </span>
-                          <span className="text-[10px] text-[#00e5bf] shrink-0">
+                          <span className="text-[10px] text-[#00e5bf] shrink-0 min-w-[42px] text-right">
                             {formatTime(time)}
                           </span>
                         </div>
