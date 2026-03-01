@@ -7,7 +7,6 @@ import {
   ChevronUp,
   ChevronDown,
   Cpu,
-  ShieldAlert,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { AppUsagePie } from "./AppUsagePie";
@@ -138,7 +137,7 @@ export const DeviceCard = ({ device }: { device: DeviceData }) => {
                 </span>
               </div>
 
-              <div className="space-y-1.5 max-h-[400px] overflow-y-auto pr-2">
+              <div className="space-y-1.5 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                 {appEntries.map(([name, time], index) => {
                   const isSelected = selectedApp === name;
                   const color =
@@ -176,12 +175,12 @@ export const DeviceCard = ({ device }: { device: DeviceData }) => {
               </div>
             </div>
 
-            {/* RIGHT PANEL */}
+            {/* RIGHT PANEL - WITH FIXED OVERFLOW AND PROGRESS BARS */}
             <div className="p-6 bg-[#00e5bf]/[0.01]">
               {isBrowser(selectedApp) && activeWebEntries.length > 0 ? (
                 <>
                   {/* HEADER */}
-                  <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center gap-2">
                       <Globe size={14} className="text-[#00e5bf]" />
                       <span className="text-[10px] uppercase font-black text-cyan-400">
@@ -193,26 +192,38 @@ export const DeviceCard = ({ device }: { device: DeviceData }) => {
                     </span>
                   </div>
 
-                  {/* WEB LIST */}
-                  <div className="space-y-4 max-h-[360px] overflow-y-auto pr-2">
-                    {activeWebEntries.map(([site, time]) => (
-                      <div
-                        key={site}
-                        className="border-b border-white/5 pb-2"
-                      >
-                        <div className="flex items-center justify-between gap-4">
-                          <span
-                            className="text-xs text-gray-300 truncate whitespace-nowrap flex-1"
-                            title={site}
-                          >
-                            {cleanSiteName(site)}
-                          </span>
-                          <span className="text-[10px] text-[#00e5bf] shrink-0 min-w-[42px] text-right">
-                            {formatTime(time)}
-                          </span>
+                  {/* WEB LIST - FIXED LAYOUT */}
+                  <div className="space-y-5 max-h-[360px] overflow-y-auto pr-3 custom-scrollbar">
+                    {activeWebEntries.map(([site, time]) => {
+                      const percentage = Math.min(100, (time / (totalWebTime || 1)) * 100);
+
+                      return (
+                        <div key={site} className="group relative border-b border-white/5 pb-3">
+                          {/* Top Row: Name and Time locked with Flexbox */}
+                          <div className="flex items-center justify-between gap-4 mb-2">
+                            <div className="flex-1 min-w-0">
+                              <span
+                                className="text-xs text-gray-300 truncate block group-hover:text-[#00e5bf] transition-colors"
+                                title={site}
+                              >
+                                {cleanSiteName(site)}
+                              </span>
+                            </div>
+                            <span className="text-[10px] text-[#00e5bf] font-mono font-bold shrink-0 bg-black/40 px-2 py-0.5 rounded border border-white/5 shadow-[0_0_5px_rgba(0,229,191,0.1)]">
+                              {formatTime(time)}
+                            </span>
+                          </div>
+
+                          {/* Glowing Progress Bar (As seen in image) */}
+                          <div className="relative w-full h-[2px] bg-white/5 rounded-full overflow-hidden">
+                            <div
+                              className="absolute top-0 left-0 h-full bg-[#00e5bf] transition-all duration-1000 ease-out shadow-[0_0_10px_#00e5bf]"
+                              style={{ width: `${percentage}%` }}
+                            />
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </>
               ) : (
@@ -240,7 +251,7 @@ export const DeviceCard = ({ device }: { device: DeviceData }) => {
           <span className="text-[9px] text-gray-600 uppercase font-black">
             Parental_Watch_Active
           </span>
-          <span className="text-[9px] text-gray-600">
+          <span className="text-[9px] text-gray-700 font-mono">
             {new Date(device.last_updated).toLocaleString()}
           </span>
         </div>
