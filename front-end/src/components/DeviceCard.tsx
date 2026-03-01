@@ -20,29 +20,24 @@ export const DeviceCard = ({ device }: { device: DeviceData }) => {
     device.current_app || null
   );
 
-  /* ───────── Browser Detection ───────── */
+  /* ---------- Browser detection ---------- */
   const isBrowser = (app?: string | null) => {
     if (!app) return false;
     return ["msedge", "chrome", "brave", "firefox"].includes(app.toLowerCase());
   };
 
-  /* ───────── App Usage List ───────── */
+  /* ---------- Process list ---------- */
   const appEntries = Object.entries(device.app_usage || {}).sort(
     ([, a], [, b]) => b - a
   );
 
-  /* ───────── Browser-Specific Web Logs (NO MIXUP) ───────── */
+  /* ---------- Browser-specific web usage ---------- */
   const activeWebEntries =
     selectedApp && device.web_usage?.[selectedApp]
-      ? Object.entries(device.web_usage[selectedApp]).sort(
-          ([, a], [, b]) => b - a
-        )
+      ? Object.entries(device.web_usage[selectedApp])
+          .sort(([, a], [, b]) => b - a)
+          .slice(0, 10)
       : [];
-
-  const browserTotal = activeWebEntries.reduce(
-    (sum, [, time]) => sum + time,
-    0
-  );
 
   return (
     <Card
@@ -144,9 +139,9 @@ export const DeviceCard = ({ device }: { device: DeviceData }) => {
                           : "border-transparent hover:border-white/10"
                       )}
                     >
-                      <div className="flex items-center gap-3 truncate">
+                      <div className="flex items-center gap-3 truncate min-w-0">
                         <div
-                          className="w-1.5 h-1.5 rounded-full"
+                          className="w-1.5 h-1.5 rounded-full shrink-0"
                           style={{ backgroundColor: color }}
                         />
                         <span
@@ -156,7 +151,7 @@ export const DeviceCard = ({ device }: { device: DeviceData }) => {
                           {name}
                         </span>
                       </div>
-                      <span className="text-[10px] opacity-70">
+                      <span className="text-[10px] opacity-70 shrink-0">
                         {formatTime(time)}
                       </span>
                     </button>
@@ -169,45 +164,27 @@ export const DeviceCard = ({ device }: { device: DeviceData }) => {
             <div className="p-6 bg-[#00e5bf]/[0.01]">
               {isBrowser(selectedApp) && activeWebEntries.length > 0 ? (
                 <>
-                  <div className="flex items-center gap-2 mb-2">
+                  <div className="flex items-center gap-2 mb-4">
                     <Globe size={14} className="text-[#00e5bf]" />
                     <span className="text-[10px] uppercase font-black text-cyan-400">
                       Network_Traffic_Logs // {selectedApp}
                     </span>
                   </div>
 
-                  {/* TOTAL WEB TIME */}
-                  <div className="mb-4 flex justify-between items-center">
-                    <span className="text-[10px] uppercase font-black text-cyan-400">
-                      Total Web Time
-                    </span>
-                    <span className="text-sm font-black text-white">
-                      {formatTime(browserTotal)}
-                    </span>
-                  </div>
-
                   <div className="space-y-4 max-h-[360px] overflow-y-auto pr-2">
-                    {activeWebEntries.slice(0, 10).map(([site, time]) => (
-                      <div key={site} className="border-b border-white/5 pb-2">
+                    {activeWebEntries.map(([site, time]) => (
+                      <div
+                        key={site}
+                        className="border-b border-white/5 pb-2"
+                      >
+                        {/* 🔥 FIXED ROW */}
                         <div className="flex items-center gap-3 w-full">
-                          <span
-                            className="text-xs text-gray-300 truncate flex-1 min-w-0"
-                            title={site}
-                          >
+                          <span className="text-xs text-gray-300 truncate flex-1 min-w-0">
                             {site}
                           </span>
                           <span className="text-[10px] text-[#00e5bf] font-mono shrink-0">
                             {formatTime(time)}
                           </span>
-                        </div>
-
-                        <div className="w-full bg-white/5 h-[2px] rounded overflow-hidden mt-1">
-                          <div
-                            className="h-full bg-[#00e5bf] shadow-[0_0_8px_#00e5bf]"
-                            style={{
-                              width: `${(time / (browserTotal || 1)) * 100}%`,
-                            }}
-                          />
                         </div>
                       </div>
                     ))}
