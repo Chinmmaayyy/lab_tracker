@@ -14,30 +14,46 @@ import { AppUsagePie } from "./AppUsagePie";
 import { DeviceData } from "@/lib/firebase";
 import { cn, formatTime, CYBER_COLORS, getActiveAppLabel } from "@/lib/utils";
 
+/* ─────────────────────────────────────────────
+   CLEAN SITE NAME (UI ONLY – NO DATA LOSS)
+───────────────────────────────────────────── */
+const cleanSiteName = (site: string) => {
+  return site
+    .replace(/ and \d+ more pages.*$/i, "")
+    .replace(/\s*-\s*Personal$/i, "")
+    .trim();
+};
+
 export const DeviceCard = ({ device }: { device: DeviceData }) => {
   const [isExpanded, setIsExpanded] = useState(true);
   const [selectedApp, setSelectedApp] = useState<string | null>(
     device.current_app || null
   );
 
-  /* ---------- Browser detection ---------- */
+  /* ───────── Browser Detection ───────── */
   const isBrowser = (app?: string | null) => {
     if (!app) return false;
     return ["msedge", "chrome", "brave", "firefox"].includes(app.toLowerCase());
   };
 
-  /* ---------- Process list ---------- */
+  /* ───────── Process Stack ───────── */
   const appEntries = Object.entries(device.app_usage || {}).sort(
     ([, a], [, b]) => b - a
   );
 
-  /* ---------- Browser-specific web usage ---------- */
+  /* ───────── Browser-specific Web Usage (NO MIXUP) ───────── */
   const activeWebEntries =
     selectedApp && device.web_usage?.[selectedApp]
       ? Object.entries(device.web_usage[selectedApp])
           .sort(([, a], [, b]) => b - a)
           .slice(0, 10)
       : [];
+
+  /* Total web time for selected browser */
+  const totalWebTime = activeWebEntries.reduce(
+    (acc, [, time]) => acc + time,
+    0
+  );
 
   return (
     <Card
@@ -139,9 +155,9 @@ export const DeviceCard = ({ device }: { device: DeviceData }) => {
                           : "border-transparent hover:border-white/10"
                       )}
                     >
-                      <div className="flex items-center gap-3 truncate min-w-0">
+                      <div className="flex items-center gap-3 truncate">
                         <div
-                          className="w-1.5 h-1.5 rounded-full shrink-0"
+                          className="w-1.5 h-1.5 rounded-full"
                           style={{ backgroundColor: color }}
                         />
                         <span
@@ -151,7 +167,7 @@ export const DeviceCard = ({ device }: { device: DeviceData }) => {
                           {name}
                         </span>
                       </div>
-                      <span className="text-[10px] opacity-70 shrink-0">
+                      <span className="text-[10px] opacity-70">
                         {formatTime(time)}
                       </span>
                     </button>
@@ -164,10 +180,15 @@ export const DeviceCard = ({ device }: { device: DeviceData }) => {
             <div className="p-6 bg-[#00e5bf]/[0.01]">
               {isBrowser(selectedApp) && activeWebEntries.length > 0 ? (
                 <>
-                  <div className="flex items-center gap-2 mb-4">
-                    <Globe size={14} className="text-[#00e5bf]" />
-                    <span className="text-[10px] uppercase font-black text-cyan-400">
-                      Network_Traffic_Logs // {selectedApp}
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <Globe size={14} className="text-[#00e5bf]" />
+                      <span className="text-[10px] uppercase font-black text-cyan-400">
+                        Network_Traffic_Logs // {selectedApp}
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-[#00e5bf] font-mono">
+                      TOTAL: {formatTime(totalWebTime)}
                     </span>
                   </div>
 
@@ -177,12 +198,14 @@ export const DeviceCard = ({ device }: { device: DeviceData }) => {
                         key={site}
                         className="border-b border-white/5 pb-2"
                       >
-                        {/* 🔥 FIXED ROW */}
-                        <div className="flex items-center gap-3 w-full">
-                          <span className="text-xs text-gray-300 truncate flex-1 min-w-0">
-                            {site}
+                        <div className="flex justify-between gap-4">
+                          <span
+                            className="text-xs text-gray-300 truncate max-w-[70%]"
+                            title={site}
+                          >
+                            {cleanSiteName(site)}
                           </span>
-                          <span className="text-[10px] text-[#00e5bf] font-mono shrink-0">
+                          <span className="text-[10px] text-[#00e5bf] shrink-0">
                             {formatTime(time)}
                           </span>
                         </div>
