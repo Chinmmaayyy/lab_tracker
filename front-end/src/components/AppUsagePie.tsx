@@ -1,41 +1,55 @@
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Sector } from "recharts";
+import { PieChart, Pie, Cell, ResponsiveContainer, Sector } from "recharts";
 import { formatTime } from "@/lib/utils";
 
 export const CHART_COLORS = [
-  "#00e5bf", // cyan
-  "#3b82f6", // blue
-  "#8b5cf6", // violet
-  "#d946ef", // pink
-  "#f43f5e", // red
-  "#22c55e", // green
-  "#eab308", // yellow
-  "#06b6d4", // sky
-  "#ec4899", // rose
-  "#a855f7", // purple
-  "#14b8a6",
-  "#0ea5e9",
-  "#6366f1",
-  "#f97316",
-  "#84cc16",
+  "#00e5bf", "#3b82f6", "#8b5cf6", "#d946ef", "#f43f5e", 
+  "#22c55e", "#eab308", "#06b6d4", "#ec4899", "#a855f7",
 ];
 
-// Custom shape to handle the "pop-out" effect
-const renderActiveShape = (props: any) => {
+// 1. ADD ALIAS LOGIC: Translates 'explorer' -> 'FILE MANAGER'
+const processAliases: Record<string, string> = {
+  "calc": "Calculator",
+  "msedge": "Microsoft Edge",
+  "brave": "Brave Browser",
+  "explorer": "File Manager",
+  "taskmgr": "Task Manager",
+  "notepad": "Notepad",
+  "whatsapp_root": "WhatsApp",
+  "code": "VS Code",
+  "chrome": "Google Chrome",
+};
+
+const getFriendlyName = (name: string) => {
+  const cleanName = name.replace(".exe", "").toLowerCase();
+  return processAliases[cleanName] || cleanName;
+};
+
+interface ActiveShapeProps {
+  cx: number;
+  cy: number;
+  innerRadius: number;
+  outerRadius: number;
+  startAngle: number;
+  endAngle: number;
+  fill: string;
+}
+
+const renderActiveShape = (props: ActiveShapeProps) => {
   const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill } = props;
   return (
     <g>
       <Sector
         cx={cx} cy={cy}
         innerRadius={innerRadius}
-        outerRadius={outerRadius + 10} // Increased radius for the "pop"
+        outerRadius={outerRadius + 8}
         startAngle={startAngle} endAngle={endAngle}
         fill={fill}
       />
       <Sector
         cx={cx} cy={cy}
         startAngle={startAngle} endAngle={endAngle}
-        innerRadius={outerRadius + 12}
-        outerRadius={outerRadius + 14}
+        innerRadius={outerRadius + 10}
+        outerRadius={outerRadius + 12}
         fill={fill}
         style={{ opacity: 0.3 }}
       />
@@ -43,36 +57,46 @@ const renderActiveShape = (props: any) => {
   );
 };
 
-export const AppUsagePie = ({ 
-  data, 
-  totalTime, 
-  selectedApp 
-}: { 
+export const AppUsagePie = ({ data, totalTime, selectedApp }: { 
   data: Record<string, number>, 
   totalTime: number,
   selectedApp: string | null 
 }) => {
   const chartData = Object.entries(data || {})
-    .sort(([, a], [, b]) => b - a)
-    .slice(0, 7)
-    .map(([name, value]) => ({ name, value }));
+    .map(([name, value]) => ({ name, value }))
+    .filter(item => item.value > 0)
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 10);
 
-  // Find the index of the selected app to trigger the pop-out
-  const activeIndex = selectedApp ? chartData.findIndex(item => item.name === selectedApp) : -1;
+  const activeIndex = selectedApp 
+    ? chartData.findIndex(item => item.name.toLowerCase() === selectedApp.toLowerCase()) 
+    : -1;
 
-  if (chartData.length === 0) return null;
+  if (chartData.length === 0) {
+    return (
+      <div className="h-[280px] flex items-center justify-center text-gray-600 italic text-xs">
+        NO_USAGE_DATA_PROCESSED
+      </div>
+    );
+  }
 
   return (
     <div className="relative h-[280px] w-full flex items-center justify-center">
-      {/* Center Text HUD */}
-      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10">
-        <span className="text-[10px] text-gray-500 uppercase font-black tracking-widest mb-1">
+      {/* ─── CENTER HUD (UI FIX HERE) ─── */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10 font-mono">
+        <span className="text-[9px] text-gray-500 uppercase font-black tracking-widest mb-1">
           {selectedApp ? "App Uptime" : "Total Session"}
         </span>
-        <span className="text-xl font-black text-white">
+        <span className="text-xl font-black text-white tabular-nums">
           {selectedApp ? formatTime(data[selectedApp] || 0) : formatTime(totalTime)}
         </span>
-        {selectedApp && <span className="text-[10px] text-[#00e5bf] font-bold mt-1 uppercase">{selectedApp}</span>}
+        
+        {/* ✅ THIS WAS MISSING: The glowing app name label */}
+        {selectedApp && (
+          <span className="text-[10px] text-[#00e5bf] font-bold mt-1 uppercase bg-[#00e5bf]/10 px-2 py-0.5 rounded border border-[#00e5bf]/20 animate-in fade-in zoom-in duration-300">
+            {getFriendlyName(selectedApp)}
+          </span>
+        )}
       </div>
 
       <ResponsiveContainer width="100%" height="100%">
@@ -82,15 +106,20 @@ export const AppUsagePie = ({
             activeShape={renderActiveShape}
             data={chartData}
             cx="50%" cy="50%"
-            innerRadius={75} outerRadius={95}
+            innerRadius={65} 
+            outerRadius={85}
             paddingAngle={5}
             dataKey="value"
+            stroke="none"
           >
-            {chartData.map((_, index) => (
+            {chartData.map((entry, index) => (
               <Cell 
-                key={index} 
+                key={`cell-${index}`} 
                 fill={CHART_COLORS[index % CHART_COLORS.length]} 
-                stroke="none"
+                style={{
+                  opacity: selectedApp && selectedApp.toLowerCase() !== entry.name.toLowerCase() ? 0.3 : 1,
+                  transition: 'opacity 0.3s ease'
+                }}
               />
             ))}
           </Pie>
