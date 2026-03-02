@@ -7,6 +7,7 @@ import {
   ChevronUp,
   ChevronDown,
   Cpu,
+  Trash2, // ✅ ADDED
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { AppUsagePie } from "./AppUsagePie";
@@ -50,7 +51,13 @@ const cleanSiteName = (site: string) => {
     .trim();
 };
 
-export const DeviceCard = ({ device }: { device: DeviceData }) => {
+export const DeviceCard = ({
+  device,
+  onDelete,
+}: {
+  device: DeviceData;
+  onDelete: (id: string) => void;
+}) => {
   const [isExpanded, setIsExpanded] = useState(true);
   const [selectedApp, setSelectedApp] = useState<string | null>(
     device.current_app || null
@@ -126,6 +133,13 @@ export const DeviceCard = ({ device }: { device: DeviceData }) => {
                   {formatTime(device.total_screen_time)}
                 </p>
               </div>
+              <button
+                onClick={() => onDelete(device.device_id)}
+                className="p-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/50 text-red-500 transition-all"
+                title="Delete Device"
+                >
+                <Trash2 size={16} />
+              </button>
               <button
                 onClick={() => setIsExpanded(!isExpanded)}
                 className="p-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10"
