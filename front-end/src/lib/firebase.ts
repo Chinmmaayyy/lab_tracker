@@ -1,8 +1,8 @@
 import { initializeApp } from "firebase/app";
-import { getDatabase, ref, onValue } from "firebase/database";
+import { getDatabase, ref, onValue, remove } from "firebase/database";
 
 /* ======================================
-   FIREBASE CONFIG
+    FIREBASE CONFIGURATION
 ====================================== */
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY!,
@@ -18,7 +18,7 @@ const app = initializeApp(firebaseConfig);
 export const database = getDatabase(app);
 
 /* ======================================
-   FRONTEND DEVICE TYPE
+    FRONTEND DATA TYPES
 ====================================== */
 export interface DeviceData {
   device_id: string;
@@ -28,30 +28,24 @@ export interface DeviceData {
   is_online: boolean;
   total_screen_time: number;
   app_usage: Record<string, number>;
-  web_usage: Record<string, number>;
+  web_usage: Record<string, Record<string, number>>; 
 }
 
-/* ======================================
-   FIREBASE RAW STRUCTURE
-====================================== */
 interface FirebaseDeviceNode {
   current?: {
     app?: string;
     website?: string;
     last_updated?: string;
   };
-  history?: Record<
-    string,
-    {
-      total_screen_time?: number;
-      app_usage?: Record<string, number>;
-      web_usage?: Record<string, number>;
-    }
-  >;
+  history?: Record<string, {
+    total_screen_time?: number;
+    app_usage?: Record<string, number>;
+    web_usage?: Record<string, Record<string, number>>;
+  }>;
 }
 
 /* ======================================
-   REALTIME SUBSCRIPTION
+    REAL-TIME DATA SUBSCRIPTION
 ====================================== */
 export const subscribeToDevices = (
   callback: (devices: Record<string, DeviceData>) => void
@@ -66,30 +60,46 @@ export const subscribeToDevices = (
       return;
     }
 
-    const today = new Date().toISOString().split("T")[0];
     const devices: Record<string, DeviceData> = {};
 
     Object.entries(data).forEach(([deviceId, deviceData]) => {
       const lastUpdated = deviceData.current?.last_updated || "";
+      
+      // Node is online if updated in the last 15 seconds
+      const isOnline = lastUpdated && 
+        (Date.now() - new Date(lastUpdated).getTime() < 15000);
 
-      const isOnline =
-        lastUpdated &&
-        Date.now() - new Date(lastUpdated).getTime() < 15000;
-
-      const todayStats = deviceData.history?.[today] || {};
+      // --- PIE CHART FIX: DYNAMIC DATE SELECTION ---
+      // Instead of hardcoding "today", we grab the most recent date available in history
+      const historyDates = deviceData.history ? Object.keys(deviceData.history).sort().reverse() : [];
+      const latestDateKey = historyDates[0]; 
+      const stats = latestDateKey ? deviceData.history![latestDateKey] : {};
 
       devices[deviceId] = {
         device_id: deviceId,
-        current_app: deviceData.current?.app || "Unknown",
+        current_app: deviceData.current?.app || "Idle",
         website: deviceData.current?.website,
         last_updated: lastUpdated,
         is_online: Boolean(isOnline),
-        total_screen_time: todayStats.total_screen_time || 0,
-        app_usage: todayStats.app_usage || {},
-        web_usage: todayStats.web_usage || {},
+        total_screen_time: stats.total_screen_time || 0,
+        app_usage: stats.app_usage || {},
+        web_usage: stats.web_usage || {}, // Maps the nested web usage structure
       };
     });
 
     callback(devices);
   });
+};
+
+/* ======================================
+    ADMIN ACTIONS: DELETE NODE
+====================================== */
+export const deleteDeviceById = async (deviceId: string) => {
+  try {
+    const deviceRef = ref(database, `devices/${deviceId}`);
+    await remove(deviceRef); // Permanently removes the device node from Firebase
+  } catch (error) {
+    console.error("CRITICAL_FIREBASE_ERROR:", error);
+    throw error;
+  }
 };
