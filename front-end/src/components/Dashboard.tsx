@@ -5,7 +5,7 @@ import { DeviceCard } from "./DeviceCard";
 import { EmptyState } from "./EmptyState";
 import { SetupInstructions } from "./SetupInstructions";
 import { subscribeToLabDevices, DeviceData, deleteDeviceById } from "@/lib/firebase";
-import { exportDeviceToExcel } from "@/lib/exportUtils"; // ⬅️ NEW UTILITY
+import { exportDeviceToExcel, exportLabToExcel } from "@/lib/exportUtils"; // ⬅️ UPDATED
 import { toast } from "sonner";
 import { 
   AlertDialog, 
@@ -113,6 +113,7 @@ export const Dashboard = () => {
         onlineDevices={sortedDevices.filter(d => d.is_online).length}
         isConnected={isConnected}
         labId={labId || "UNKNOWN"}
+        onDownloadLabReport={() => exportLabToExcel(devices, labId || "0")}
       />
 
       <main className="max-w-[1600px] mx-auto px-6 py-8">

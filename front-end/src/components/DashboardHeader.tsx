@@ -1,4 +1,4 @@
-import { Activity, Wifi, WifiOff, LogOut } from "lucide-react";
+import { Activity, Wifi, WifiOff, LogOut, Download } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -8,13 +8,15 @@ interface DashboardHeaderProps {
   onlineDevices: number;
   isConnected: boolean;
   labId: string;
+  onDownloadLabReport: () => void;
 }
 
 export const DashboardHeader = ({ 
   totalDevices, 
   onlineDevices, 
   isConnected,
-  labId
+  labId,
+  onDownloadLabReport
 }: DashboardHeaderProps) => {
   const navigate = useNavigate();
 
@@ -41,7 +43,7 @@ export const DashboardHeader = ({
                   Device Usage Tracker
                 </h1>
                 <Badge variant="outline" className="border-primary/30 text-primary font-mono text-[10px]">
-                  {labId}
+                  LAB {labId}
                 </Badge>
               </div>
               <p className="text-sm text-muted-foreground">
@@ -70,15 +72,28 @@ export const DashboardHeader = ({
               <span className="font-mono text-foreground">{totalDevices}</span>
             </Badge>
 
-            <Button 
-              variant="ghost" 
-              size="icon"
-              onClick={handleLogout}
-              className="ml-2 hover:bg-destructive/10 hover:text-destructive text-muted-foreground"
-              title="Logout"
-            >
-              <LogOut size={18} />
-            </Button>
+            <div className="flex items-center gap-2 border-l border-border/50 pl-3 ml-2">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={onDownloadLabReport}
+                className="gap-2 border-primary/30 text-primary hover:bg-primary/10"
+                title="Download Lab Report (All Devices)"
+              >
+                <Download size={14} />
+                <span className="hidden md:inline text-xs">Download Lab Report</span>
+              </Button>
+
+              <Button 
+                variant="ghost" 
+                size="icon"
+                onClick={handleLogout}
+                className="hover:bg-destructive/10 hover:text-destructive text-muted-foreground"
+                title="Logout"
+              >
+                <LogOut size={18} />
+              </Button>
+            </div>
           </div>
         </div>
       </div>
