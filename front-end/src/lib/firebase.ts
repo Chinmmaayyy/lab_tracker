@@ -7,7 +7,7 @@ import { getDatabase, ref, onValue, remove } from "firebase/database";
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY!,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN!,
-  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL!,
+  databaseURL: "https://fir-os-dc607-default-rtdb.firebaseio.com", 
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID!,
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET!,
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID!,
@@ -29,7 +29,6 @@ export interface DeviceData {
   total_screen_time: number;
   app_usage: Record<string, number>;
   web_usage: Record<string, Record<string, number>>; 
-  // ⬇️ CRITICAL: Added history to the interface so Excel can see it
   history?: Record<string, any>; 
 }
 
@@ -49,10 +48,14 @@ interface FirebaseDeviceNode {
 /* ======================================
     REAL-TIME DATA SUBSCRIPTION
 ====================================== */
-export const subscribeToDevices = (
+export const subscribeToLabDevices = (
+  labId: string,
   callback: (devices: Record<string, DeviceData>) => void
 ) => {
-  const devicesRef = ref(database, "devices");
+  // LAB 0 fetches from root 'devices' (Legacy compatibility as requested)
+  // Others fetch from 'labs/LAB_NO/devices'
+  const path = (labId === "0") ? "devices" : `labs/${labId}/devices`;
+  const devicesRef = ref(database, path);
 
   return onValue(devicesRef, (snapshot) => {
     const data = snapshot.val() as Record<string, FirebaseDeviceNode> | null;
@@ -70,12 +73,10 @@ export const subscribeToDevices = (
       const isOnline = lastUpdated && 
         (Date.now() - new Date(lastUpdated).getTime() < 15000);
 
-      // We still find the latest date for the Dashboard UI
       const historyDates = deviceData.history ? Object.keys(deviceData.history).sort().reverse() : [];
       const latestDateKey = historyDates[0]; 
       const stats = latestDateKey ? deviceData.history![latestDateKey] : {};
 
-      // ⬇️ MAPPING THE DATA
       devices[deviceId] = {
         device_id: deviceId,
         current_app: deviceData.current?.app || "Idle",
@@ -85,7 +86,6 @@ export const subscribeToDevices = (
         total_screen_time: stats.total_screen_time || 0,
         app_usage: stats.app_usage || {},
         web_usage: stats.web_usage || {}, 
-        // ⬇️ CRITICAL: This line sends the history logs to your Excel function
         history: deviceData.history, 
       };
     });
@@ -97,9 +97,10 @@ export const subscribeToDevices = (
 /* ======================================
     ADMIN ACTIONS: DELETE NODE
 ====================================== */
-export const deleteDeviceById = async (deviceId: string) => {
+export const deleteDeviceById = async (labId: string, deviceId: string) => {
   try {
-    const deviceRef = ref(database, `devices/${deviceId}`);
+    const path = (labId === "0") ? `devices/${deviceId}` : `labs/${labId}/devices/${deviceId}`;
+    const deviceRef = ref(database, path);
     await remove(deviceRef);
   } catch (error) {
     console.error("CRITICAL_FIREBASE_ERROR:", error);

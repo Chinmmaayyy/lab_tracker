@@ -13,6 +13,9 @@ build/
 
 # Secrets - DO NOT COMMIT
 python_client/firebase/serviceAccountKey.json
+.env
+.env.*
+!.env.example
 
 # Logs
 logs/

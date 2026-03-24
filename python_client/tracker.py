@@ -59,10 +59,16 @@ def init_firebase():
         log_error(f"Firebase init failed: {e}")
 
 # ==================================================
+# CONFIGURATION
+# ==================================================
+LAB_ID = "1"  # Change this for each lab (0 to 6)
+
+# ==================================================
 # UTILS
 # ==================================================
 def get_device_id():
-    return f"{socket.gethostname()}-{uuid.getnode()}"
+    # Prepend LAB_ID for sorting
+    return f"{LAB_ID}-{socket.gethostname()}-{uuid.getnode()}"
 
 def sanitize_key(key: str) -> str:
     if not key or key.strip() == "":
@@ -112,7 +118,8 @@ def get_active_window():
 # ==================================================
 def start_tracker():
     device_id = get_device_id()
-    device_ref = db.reference(f"devices/{device_id}")
+    # Structure: labs/{LAB_NOS}/devices/{device_id}
+    device_ref = db.reference(f"labs/{LAB_ID}/devices/{device_id}")
 
     last_app = None
     last_website = None

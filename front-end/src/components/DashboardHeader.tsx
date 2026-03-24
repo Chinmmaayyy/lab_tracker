@@ -1,17 +1,28 @@
-import { Activity, Wifi, WifiOff } from "lucide-react";
+import { Activity, Wifi, WifiOff, LogOut } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 
 interface DashboardHeaderProps {
   totalDevices: number;
   onlineDevices: number;
   isConnected: boolean;
+  labId: string;
 }
 
 export const DashboardHeader = ({ 
   totalDevices, 
   onlineDevices, 
-  isConnected 
+  isConnected,
+  labId
 }: DashboardHeaderProps) => {
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    localStorage.removeItem("labId");
+    navigate("/login");
+  };
+
   return (
     <header className="border-b border-border/50 bg-card/30 backdrop-blur-sm sticky top-0 z-10">
       <div className="container mx-auto px-4 py-4">
@@ -22,19 +33,24 @@ export const DashboardHeader = ({
               <div className="p-2 rounded-lg bg-primary/10 border border-primary/20">
                 <Activity className="h-6 w-6 text-primary" />
               </div>
-              <div className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-success animate-pulse" />
+              <div className={`absolute -top-1 -right-1 h-3 w-3 rounded-full ${isConnected ? "bg-success animate-pulse" : "bg-destructive"}`} />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-foreground">
-                Device Usage Tracker
-              </h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl font-bold text-foreground">
+                  Device Usage Tracker
+                </h1>
+                <Badge variant="outline" className="border-primary/30 text-primary font-mono text-[10px]">
+                  {labId}
+                </Badge>
+              </div>
               <p className="text-sm text-muted-foreground">
                 Real-time application monitoring
               </p>
             </div>
           </div>
           
-          {/* Stats */}
+          {/* Stats & Actions */}
           <div className="flex items-center gap-3">
             <Badge variant="secondary" className="gap-2 px-3 py-1.5">
               {isConnected ? (
@@ -42,17 +58,27 @@ export const DashboardHeader = ({
               ) : (
                 <WifiOff className="h-3.5 w-3.5 text-destructive" />
               )}
-              <span className="font-mono">
+              <span className="font-mono text-xs uppercase tracking-wider">
                 {isConnected ? "Connected" : "Disconnected"}
               </span>
             </Badge>
             
             <Badge variant="outline" className="gap-2 px-3 py-1.5 border-primary/30">
               <span className="text-muted-foreground">Devices:</span>
-              <span className="font-mono text-primary">{onlineDevices}</span>
+              <span className="font-mono text-primary font-bold">{onlineDevices}</span>
               <span className="text-muted-foreground">/</span>
               <span className="font-mono text-foreground">{totalDevices}</span>
             </Badge>
+
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={handleLogout}
+              className="ml-2 hover:bg-destructive/10 hover:text-destructive text-muted-foreground"
+              title="Logout"
+            >
+              <LogOut size={18} />
+            </Button>
           </div>
         </div>
       </div>

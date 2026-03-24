@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { DashboardHeader } from "./DashboardHeader";
 import { DeviceCard } from "./DeviceCard";
 import { EmptyState } from "./EmptyState";
 import { SetupInstructions } from "./SetupInstructions";
-import { subscribeToDevices, DeviceData, deleteDeviceById } from "@/lib/firebase";
+import { subscribeToLabDevices, DeviceData, deleteDeviceById } from "@/lib/firebase";
 import { exportDeviceToExcel } from "@/lib/exportUtils"; // ⬅️ NEW UTILITY
 import { toast } from "sonner";
 import { 
@@ -20,6 +21,9 @@ import { Input } from "@/components/ui/input";
 import { ShieldAlert, Download, Trash2 } from "lucide-react";
 
 export const Dashboard = () => {
+  const navigate = useNavigate();
+  const labId = localStorage.getItem("labId");
+  
   const [devices, setDevices] = useState<Record<string, DeviceData>>({});
   const [isConnected, setIsConnected] = useState(false);
   const [showSetup, setShowSetup] = useState(false);
@@ -30,7 +34,12 @@ export const Dashboard = () => {
   const ADMIN_PASSWORD = "ADMIN123";
 
   useEffect(() => {
-    const unsubscribe = subscribeToDevices((data) => {
+    if (!labId) {
+      navigate("/login");
+      return;
+    }
+
+    const unsubscribe = subscribeToLabDevices(labId, (data) => {
       setDevices(data || {});
       setIsConnected(true);
     });
@@ -72,8 +81,10 @@ export const Dashboard = () => {
         }
 
         // 2. Permanent Deletion
-        await deleteDeviceById(deviceToDelete);
-        toast.success(`NODE ${deviceToDelete} TERMINATED SUCCESSFULLY`);
+        if (labId) {
+          await deleteDeviceById(labId, deviceToDelete);
+          toast.success(`NODE ${deviceToDelete} TERMINATED SUCCESSFULLY`);
+        }
         
         // 3. Reset State
         setDeviceToDelete(null);
@@ -101,6 +112,7 @@ export const Dashboard = () => {
         totalDevices={sortedDevices.length}
         onlineDevices={sortedDevices.filter(d => d.is_online).length}
         isConnected={isConnected}
+        labId={labId || "UNKNOWN"}
       />
 
       <main className="max-w-[1600px] mx-auto px-6 py-8">
