@@ -1,10 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { DashboardHeader } from "./DashboardHeader";
 import { DeviceCard } from "./DeviceCard";
 import { EmptyState } from "./EmptyState";
 import { SetupInstructions } from "./SetupInstructions";
-import { subscribeToLabDevices, DeviceData, deleteDeviceById } from "@/lib/firebase";
+import {
+  subscribeToLabDevices,
+  clearAllAlertsByDeviceIds,
+  DeviceData,
+  deleteDeviceById,
+} from "@/lib/firebase";
 import { exportDeviceToExcel, exportLabToExcel } from "@/lib/exportUtils"; // ⬅️ UPDATED
 import { toast } from "sonner";
 import { 
@@ -18,6 +23,14 @@ import {
   AlertDialogTitle 
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { ShieldAlert, Download, Trash2 } from "lucide-react";
 
 export const Dashboard = () => {
@@ -27,6 +40,9 @@ export const Dashboard = () => {
   const [devices, setDevices] = useState<Record<string, DeviceData>>({});
   const [isConnected, setIsConnected] = useState(false);
   const [showSetup, setShowSetup] = useState(false);
+  const [showAlertsPanel, setShowAlertsPanel] = useState(false);
+  const [isClearingAlerts, setIsClearingAlerts] = useState(false);
+  const seenAlertsRef = useRef(new Set<string>());
   
   // 🔐 ADMIN & DELETION STATE
   const [deviceToDelete, setDeviceToDelete] = useState<string | null>(null);
@@ -60,7 +76,42 @@ export const Dashboard = () => {
       unsubscribe();
       clearInterval(interval);
     };
-  }, []);
+  }, [labId, navigate]);
+
+  useEffect(() => {
+    Object.entries(devices).forEach(([deviceId, device]) => {
+      if (!device.alerts) {
+        return;
+      }
+
+      Object.values(device.alerts).forEach((alert) => {
+        if (alert?.type !== "suspicious_activity" || !alert.timestamp) {
+          return;
+        }
+
+        const alertKey = `${deviceId}-${alert.timestamp}`;
+        if (seenAlertsRef.current.has(alertKey)) {
+          return;
+        }
+
+        seenAlertsRef.current.add(alertKey);
+
+        // Keep dedupe storage bounded to avoid long-session memory growth.
+        if (seenAlertsRef.current.size > 2000) {
+          const oldest = seenAlertsRef.current.values().next().value;
+          if (oldest) {
+            seenAlertsRef.current.delete(oldest);
+          }
+        }
+
+        toast.error(`🚨 ${deviceId} opened ${alert.website || alert.app || "suspicious activity"}`, {
+          duration: 10000,
+          closeButton: true,
+          className: "min-w-[360px] py-4 text-base",
+        });
+      });
+    });
+  }, [devices]);
 
   // 🛠️ ENHANCED DELETION LOGIC
   const executeFinalPurge = async (shouldDownload: boolean) => {
@@ -106,6 +157,46 @@ export const Dashboard = () => {
     Number(b.is_online) - Number(a.is_online)
   );
 
+  const suspiciousAlerts = Object.entries(devices)
+    .flatMap(([deviceId, device]) => {
+      return Object.values(device.alerts || {})
+        .filter((alert) => alert?.type === "suspicious_activity" && alert.timestamp)
+        .map((alert) => ({
+          deviceId,
+          app: alert.app || "unknown_app",
+          website: alert.website || "",
+          timestamp: alert.timestamp,
+        }));
+    })
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+  const suspiciousAlertCount = suspiciousAlerts.length;
+
+  const handleClearAllAlerts = async () => {
+    if (!labId || suspiciousAlerts.length === 0 || isClearingAlerts) {
+      return;
+    }
+
+    const shouldClear = window.confirm(
+      "Clear all suspicious alerts from Firebase for this lab?"
+    );
+
+    if (!shouldClear) {
+      return;
+    }
+
+    try {
+      setIsClearingAlerts(true);
+      const uniqueDeviceIds = [...new Set(suspiciousAlerts.map((alert) => alert.deviceId))];
+      await clearAllAlertsByDeviceIds(labId, uniqueDeviceIds);
+      toast.success("All alerts cleared successfully.");
+    } catch (error) {
+      toast.error("Failed to clear alerts.");
+    } finally {
+      setIsClearingAlerts(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#040708] bg-grid">
       <DashboardHeader
@@ -113,6 +204,8 @@ export const Dashboard = () => {
         onlineDevices={sortedDevices.filter(d => d.is_online).length}
         isConnected={isConnected}
         labId={labId || "UNKNOWN"}
+        suspiciousAlertCount={suspiciousAlertCount}
+        onOpenAlerts={() => setShowAlertsPanel(true)}
         onDownloadLabReport={() => exportLabToExcel(devices, labId || "0")}
       />
 
@@ -193,6 +286,51 @@ export const Dashboard = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={showAlertsPanel} onOpenChange={setShowAlertsPanel}>
+        <DialogContent className="bg-[#0a0f11] border-2 border-red-500/30 text-white font-mono max-w-3xl">
+          <DialogHeader>
+            <div className="flex items-center justify-between gap-3">
+              <DialogTitle className="text-red-400 uppercase tracking-wider flex items-center gap-2">
+                🚨 Suspicious Activity Alerts
+              </DialogTitle>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleClearAllAlerts}
+                disabled={suspiciousAlerts.length === 0 || isClearingAlerts}
+                className="border-red-500/50 text-red-300 hover:bg-red-500/10"
+              >
+                {isClearingAlerts ? "Clearing..." : "Clear All"}
+              </Button>
+            </div>
+            <DialogDescription className="text-gray-400">
+              Recent suspicious activity events detected across tracked devices.
+            </DialogDescription>
+          </DialogHeader>
+
+          {suspiciousAlerts.length === 0 ? (
+            <div className="text-sm text-gray-400 py-6">No suspicious alerts yet.</div>
+          ) : (
+            <div className="max-h-[55vh] overflow-y-auto pr-1 space-y-2">
+              {suspiciousAlerts.map((alert, index) => (
+                <div
+                  key={`${alert.deviceId}-${alert.timestamp}-${index}`}
+                  className="border border-red-500/20 rounded-lg p-3 bg-black/30"
+                >
+                  <div className="text-sm text-red-300 font-bold">
+                    {alert.deviceId} opened {alert.website || alert.app}
+                  </div>
+                  <div className="text-xs text-gray-400 mt-1">
+                    {new Date(alert.timestamp).toLocaleString()}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {showSetup && <SetupInstructions onClose={() => setShowSetup(false)} />}
     </div>

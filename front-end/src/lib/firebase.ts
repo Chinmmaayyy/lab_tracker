@@ -29,7 +29,15 @@ export interface DeviceData {
   total_screen_time: number;
   app_usage: Record<string, number>;
   web_usage: Record<string, Record<string, number>>; 
-  history?: Record<string, any>; 
+  alerts?: Record<string, SuspiciousActivityAlert>;
+  history?: Record<string, unknown>; 
+}
+
+export interface SuspiciousActivityAlert {
+  type: "suspicious_activity";
+  app?: string;
+  website?: string;
+  timestamp: string;
 }
 
 interface FirebaseDeviceNode {
@@ -43,6 +51,7 @@ interface FirebaseDeviceNode {
     app_usage?: Record<string, number>;
     web_usage?: Record<string, Record<string, number>>;
   }>;
+  alerts?: Record<string, SuspiciousActivityAlert>;
 }
 
 /* ======================================
@@ -86,6 +95,7 @@ export const subscribeToLabDevices = (
         total_screen_time: stats.total_screen_time || 0,
         app_usage: stats.app_usage || {},
         web_usage: stats.web_usage || {}, 
+        alerts: deviceData.alerts || {},
         history: deviceData.history, 
       };
     });
@@ -102,6 +112,26 @@ export const deleteDeviceById = async (labId: string, deviceId: string) => {
     const path = (labId === "0") ? `devices/${deviceId}` : `labs/${labId}/devices/${deviceId}`;
     const deviceRef = ref(database, path);
     await remove(deviceRef);
+  } catch (error) {
+    console.error("CRITICAL_FIREBASE_ERROR:", error);
+    throw error;
+  }
+};
+
+export const clearAllAlertsByDeviceIds = async (labId: string, deviceIds: string[]) => {
+  try {
+    if (deviceIds.length === 0) {
+      return;
+    }
+
+    await Promise.all(
+      deviceIds.map((deviceId) => {
+        const path = (labId === "0")
+          ? `devices/${deviceId}/alerts`
+          : `labs/${labId}/devices/${deviceId}/alerts`;
+        return remove(ref(database, path));
+      })
+    );
   } catch (error) {
     console.error("CRITICAL_FIREBASE_ERROR:", error);
     throw error;

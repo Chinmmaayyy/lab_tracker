@@ -61,7 +61,33 @@ def init_firebase():
 # ==================================================
 # CONFIGURATION
 # ==================================================
-LAB_ID = "1"  # Change this for each lab (0 to 6)
+LAB_ID = "6"  # Change this for each lab (0 to 6)
+
+SUSPICIOUS_KEYWORDS = [
+    # AI Tools
+    "chatgpt", "openai", "gpt", "gemini", "bard", "claude",
+    "copilot", "blackbox", "phind", "perplexity", "poe",
+
+    # Writing/Docs tools
+    "google docs", "docs.google", "notion", "notion ai",
+
+    # Search engines (optional cheating context)
+    "google", "bing", "yahoo",
+
+    # Coding help platforms
+    "stackoverflow", "github", "geeksforgeeks", "w3schools",
+
+    # Communication / sharing
+    "whatsapp web", "web.whatsapp", "telegram", "discord",
+
+    # File sharing / external help
+    "drive.google", "dropbox",
+
+    # Others
+    "quora", "reddit"
+]
+
+ALERT_COOLDOWN = 60  # seconds
 
 # ==================================================
 # UTILS
@@ -76,6 +102,11 @@ def sanitize_key(key: str) -> str:
     for ch in ".#$[]/":
         key = key.replace(ch, "_")
     return key.strip()
+
+
+def is_suspicious(app, website):
+    text = f"{app} {website}".lower() if website else app.lower()
+    return any(keyword in text for keyword in SUSPICIOUS_KEYWORDS)
 
 # ==================================================
 # ACTIVE WINDOW DETECTION
@@ -124,6 +155,7 @@ def start_tracker():
     last_app = None
     last_website = None
     last_time = time.time()
+    last_alert_time = 0
 
     while True:
         try:
@@ -133,6 +165,21 @@ def start_tracker():
             current_app, current_website = get_active_window()
             now = time.time()
             elapsed = int(now - last_time)
+
+            # Cooldowned realtime suspicious activity alert
+            if is_suspicious(current_app, current_website):
+                if now - last_alert_time > ALERT_COOLDOWN:
+                    try:
+                        device_ref.child("alerts").push({
+                            "type": "suspicious_activity",
+                            "app": current_app,
+                            "website": current_website,
+                            "timestamp": datetime.utcnow().isoformat() + "Z"
+                        })
+                        last_alert_time = now
+                    except Exception as alert_error:
+                        # Alert errors should not interrupt the main tracker loop.
+                        log_error(f"Alert push error: {alert_error}")
 
             if last_app and elapsed > 0:
                 app_key = sanitize_key(last_app)

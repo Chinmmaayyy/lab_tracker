@@ -1,4 +1,4 @@
-import { Activity, Wifi, WifiOff, LogOut, Download } from "lucide-react";
+import { Activity, Wifi, WifiOff, LogOut, Download, Bell } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,8 @@ interface DashboardHeaderProps {
   onlineDevices: number;
   isConnected: boolean;
   labId: string;
+  suspiciousAlertCount: number;
+  onOpenAlerts: () => void;
   onDownloadLabReport: () => void;
 }
 
@@ -16,6 +18,8 @@ export const DashboardHeader = ({
   onlineDevices, 
   isConnected,
   labId,
+  suspiciousAlertCount,
+  onOpenAlerts,
   onDownloadLabReport
 }: DashboardHeaderProps) => {
   const navigate = useNavigate();
@@ -71,6 +75,20 @@ export const DashboardHeader = ({
               <span className="text-muted-foreground">/</span>
               <span className="font-mono text-foreground">{totalDevices}</span>
             </Badge>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onOpenAlerts}
+              className="gap-2 border-red-500/40 text-red-400 hover:bg-red-500/10 hover:text-red-300"
+              title="Open suspicious activity alerts"
+            >
+              <Bell className="h-3.5 w-3.5" />
+              <span className="font-mono text-xs uppercase tracking-wider">Alerts</span>
+              <span className="font-mono font-bold text-red-300">
+                {suspiciousAlertCount > 99 ? "99+" : suspiciousAlertCount}
+              </span>
+            </Button>
 
             <div className="flex items-center gap-2 border-l border-border/50 pl-3 ml-2">
               <Button 
