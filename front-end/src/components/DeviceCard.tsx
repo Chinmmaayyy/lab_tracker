@@ -182,7 +182,7 @@ export const DeviceCard = ({
 
         {/* ───────── EXPANDED ANALYTICS ───────── */}
         {isExpanded && (
-          <div className="grid grid-cols-1 lg:grid-cols-[250px_1fr]">
+          <div className="grid grid-cols-1 lg:grid-cols-[220px_minmax(0,1fr)] xl:grid-cols-[250px_minmax(0,1fr)]">
             {/* LEFT: PROCESS STACK */}
             <div className="p-5 border-r border-white/5 bg-black/40">
               <div className="flex items-center gap-2 mb-5">
@@ -222,17 +222,17 @@ export const DeviceCard = ({
             </div>
 
             {/* RIGHT: WEB HISTORY */}
-            <div className="p-6 bg-[#00e5bf]/[0.01]">
+            <div className="p-6 bg-[#00e5bf]/[0.01] min-w-0">
               {isBrowser(selectedApp) && activeWebEntries.length > 0 ? (
                 <>
-                  <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-6 min-w-0">
+                    <div className="flex items-center gap-2 min-w-0">
                       <Globe size={14} className="text-[#00e5bf]" />
-                      <span className="text-[10px] uppercase font-black text-cyan-400">
+                      <span className="text-[10px] uppercase font-black text-cyan-400 truncate">
                         Network_Traffic_Logs // {getFriendlyName(selectedApp || "")}
                       </span>
                     </div>
-                    <span className="text-[10px] text-[#00e5bf] font-mono tracking-widest shrink-0">
+                    <span className="text-[10px] text-[#00e5bf] font-mono tracking-wide break-words sm:text-right max-w-full">
                       TOTAL_WEB_TIME: {formatTime(totalWebTime)}
                     </span>
                   </div>
@@ -292,11 +292,11 @@ export const DeviceCard = ({
           </div>
         )}
 
-        <div className="px-6 py-4 border-t border-white/5 bg-black/60 flex justify-between">
-          <span className="text-[9px] text-gray-600 uppercase font-black">
+        <div className="px-6 py-4 border-t border-white/5 bg-black/60 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5">
+          <span className="text-[9px] text-gray-600 uppercase font-black shrink-0">
             Parental_Watch_Active
           </span>
-          <span className="text-[9px] text-gray-700 font-mono">
+          <span className="text-[9px] text-gray-700 font-mono leading-tight text-right break-words max-w-full sm:max-w-[60%]">
             {new Date(device.last_updated).toLocaleString()}
           </span>
         </div>
