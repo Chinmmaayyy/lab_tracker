@@ -83,6 +83,14 @@ const Login = () => {
             </Button>
           </form>
 
+          <div className="mt-5 rounded-lg border border-primary/30 bg-primary/5 p-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+              Demo Credentials
+            </p>
+            <p className="text-sm text-foreground/90 mt-1">Lab ID: 6</p>
+            <p className="text-sm text-foreground/90">Password: ADMIN123</p>
+          </div>
+
           <div className="mt-8 pt-6 border-t border-border/50 text-center">
             <p className="text-xs text-muted-foreground">
               Authorized Access Only
