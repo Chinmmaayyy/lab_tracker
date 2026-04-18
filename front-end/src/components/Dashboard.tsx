@@ -47,7 +47,7 @@ export const Dashboard = () => {
   // 🔐 ADMIN & DELETION STATE
   const [deviceToDelete, setDeviceToDelete] = useState<string | null>(null);
   const [passwordInput, setPasswordInput] = useState("");
-  const ADMIN_PASSWORD = "ADMIN123";
+  const ADMIN_PASSWORD = "QWERTY123456";
 
   useEffect(() => {
     if (!labId) {
