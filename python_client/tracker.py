@@ -100,7 +100,11 @@ def init_firebase():
 # ==================================================
 # CONFIGURATION
 # ==================================================
-LAB_ID = os.getenv("TRACKER_LAB_ID", "1").strip() or "1"
+DEFAULT_LAB_ID = "3"  # Edit this (1-6) if you want lab fixed in code.
+LAB_ID = os.getenv("TRACKER_LAB_ID", DEFAULT_LAB_ID).strip() or DEFAULT_LAB_ID
+if LAB_ID not in {"1", "2", "3", "4", "5", "6"}:
+    log_error(f"Invalid TRACKER_LAB_ID='{LAB_ID}'. Falling back to '{DEFAULT_LAB_ID}'.")
+    LAB_ID = DEFAULT_LAB_ID
 
 SUSPICIOUS_KEYWORDS = [
     # AI Tools
@@ -127,6 +131,7 @@ SUSPICIOUS_KEYWORDS = [
 ]
 
 ALERT_COOLDOWN = 60  # seconds
+POLL_INTERVAL = 2  # seconds
 
 # ==================================================
 # UTILS
@@ -196,6 +201,7 @@ def start_tracker():
     last_website = None
     last_time = time.time()
     last_alert_time = 0
+    last_alert_signature = None
     last_status_log = 0
 
     while True:
@@ -207,9 +213,12 @@ def start_tracker():
             now = time.time()
             elapsed = int(now - last_time)
 
-            # Cooldowned realtime suspicious activity alert
+            # Fire immediately for a new suspicious target, cooldown only duplicate alerts.
+            current_alert_signature = (current_app or "", current_website or "")
             if is_suspicious(current_app, current_website):
-                if now - last_alert_time > ALERT_COOLDOWN:
+                is_new_target = current_alert_signature != last_alert_signature
+                is_cooldown_complete = now - last_alert_time > ALERT_COOLDOWN
+                if is_new_target or is_cooldown_complete:
                     try:
                         device_ref.child("alerts").push({
                             "type": "suspicious_activity",
@@ -218,9 +227,12 @@ def start_tracker():
                             "timestamp": datetime.utcnow().isoformat() + "Z"
                         })
                         last_alert_time = now
+                        last_alert_signature = current_alert_signature
                     except Exception as alert_error:
                         # Alert errors should not interrupt the main tracker loop.
                         log_error(f"Alert push error: {alert_error}")
+            else:
+                last_alert_signature = None
 
             if last_app and elapsed > 0:
                 app_key = sanitize_key(last_app)
@@ -258,7 +270,7 @@ def start_tracker():
             last_website = current_website
             last_time = now
 
-            time.sleep(5)
+            time.sleep(POLL_INTERVAL)
 
         except Exception as e:
             log_error(f"Runtime error: {e}")

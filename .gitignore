@@ -35,3 +35,6 @@ pnpm-debug.log*
 *.sln
 *.sw?
 device-usage-tracker/python_client/firebase/serviceAccountKey.json
+
+# Local handoff document
+CLONE_HANDOFF_PRD.md
