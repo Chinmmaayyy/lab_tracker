@@ -100,7 +100,7 @@ def init_firebase():
 # ==================================================
 # CONFIGURATION
 # ==================================================
-DEFAULT_LAB_ID = "3"  # Edit this (1-6) if you want lab fixed in code.
+DEFAULT_LAB_ID = "6"  # Edit this (1-6) if you want lab fixed in code.
 LAB_ID = os.getenv("TRACKER_LAB_ID", DEFAULT_LAB_ID).strip() or DEFAULT_LAB_ID
 if LAB_ID not in {"1", "2", "3", "4", "5", "6"}:
     log_error(f"Invalid TRACKER_LAB_ID='{LAB_ID}'. Falling back to '{DEFAULT_LAB_ID}'.")
@@ -108,7 +108,7 @@ if LAB_ID not in {"1", "2", "3", "4", "5", "6"}:
 
 SUSPICIOUS_KEYWORDS = [
     # AI Tools
-    "chatgpt", "openai", "gpt", "google gemini", "bard", "claude",
+    "chatgpt", "chat gpt", "chatgpt.com", "chat.openai", "openai", "gpt", "google gemini", "gemini", "bard", "claude",
     "copilot", "blackbox", "phind", "perplexity", "poe",
 
     # Writing/Docs tools
@@ -131,7 +131,19 @@ SUSPICIOUS_KEYWORDS = [
 ]
 
 ALERT_COOLDOWN = 60  # seconds
-POLL_INTERVAL = 2  # seconds
+DEFAULT_POLL_INTERVAL = 5.0  # seconds
+try:
+    POLL_INTERVAL = float(os.getenv("TRACKER_POLL_INTERVAL", str(DEFAULT_POLL_INTERVAL)).strip() or DEFAULT_POLL_INTERVAL)
+except ValueError:
+    POLL_INTERVAL = DEFAULT_POLL_INTERVAL
+
+if POLL_INTERVAL < 1.0:
+    log_error(f"Invalid TRACKER_POLL_INTERVAL='{POLL_INTERVAL}'. Falling back to {DEFAULT_POLL_INTERVAL}s.")
+    POLL_INTERVAL = DEFAULT_POLL_INTERVAL
+
+BROWSER_PROCESSES = {
+    "msedge", "chrome", "brave", "firefox", "opera", "opera_gx", "chromium", "arc", "vivaldi"
+}
 
 # ==================================================
 # UTILS
@@ -151,6 +163,21 @@ def sanitize_key(key: str) -> str:
 def is_suspicious(app, website):
     text = f"{app} {website}".lower() if website else app.lower()
     return any(keyword in text for keyword in SUSPICIOUS_KEYWORDS)
+
+
+def extract_website_title(window_title: str) -> str:
+    if not window_title:
+        return ""
+
+    # Normalize common title separators used by browsers.
+    normalized = (
+        window_title
+        .replace(" \u2014 ", " - ")
+        .replace(" \u2013 ", " - ")
+    )
+    if " - " in normalized:
+        return normalized.rsplit(" - ", 1)[0]
+    return normalized
 
 # ==================================================
 # ACTIVE WINDOW DETECTION
@@ -176,11 +203,8 @@ def get_active_window():
         app = process.name().replace(".exe", "").lower()
 
         website = None
-        if app in ["msedge", "chrome", "brave", "firefox"]:
-            if " - " in title:
-                website = title.rsplit(" - ", 1)[0]
-            else:
-                website = title
+        if app in BROWSER_PROCESSES:
+            website = extract_website_title(title)
 
         return app, website
 
@@ -205,6 +229,7 @@ def start_tracker():
     last_status_log = 0
 
     while True:
+        loop_started = time.monotonic()
         try:
             today = datetime.utcnow().strftime("%Y-%m-%d")
             daily_ref = device_ref.child(f"history/{today}")
@@ -270,11 +295,14 @@ def start_tracker():
             last_website = current_website
             last_time = now
 
-            time.sleep(POLL_INTERVAL)
-
         except Exception as e:
             log_error(f"Runtime error: {e}")
             time.sleep(10)
+            continue
+
+        loop_elapsed = time.monotonic() - loop_started
+        sleep_for = max(0.5, POLL_INTERVAL - loop_elapsed)
+        time.sleep(sleep_for)
 
 # ==================================================
 # ENTRY POINT
